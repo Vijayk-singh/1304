@@ -1,0 +1,108 @@
+<!-- index.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Socket.IO Chat</title>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js" integrity="sha384-0pUGZvbkm6XF6gxjEnlmuGrJXVbNuzT9qBBavbLwCsOGabYfZo0T0to5eqruptLy" crossorigin="anonymous"></script>
+    <script src="https://cdn.socket.io/4.3.1/socket.io.min.js"></script>
+  </head>
+  <body className="container">
+    <h1>Private Chat</h1>
+
+    <label for="usernameInput">Choose a username:</label>
+    <input type="text" id="usernameInput" placeholder="Enter your username" />
+    <button onclick="setUsername()">Set Username</button>
+
+    <hr />
+
+    <div id="chatMessages" class="card"></div>
+
+    <h2>Send Private Message</h2>
+    <label for="recipientInput">Recipient:</label>
+    <select
+    
+      type="text"
+      id="recipientSelect"
+      placeholder="Enter recipient's username"
+    ></select>
+    <br />
+    <label for="messageInput">Message:</label>
+    <input type="text" id="messageInput" placeholder="Type your message" />
+    <button onclick="sendMessage()">Send</button>
+
+    <script>
+      const socket = io();
+      let username = "";
+
+      function setUsername() {
+        const input = document.getElementById("usernameInput");
+        username = input.value.trim();
+
+        if (username) {
+          socket.emit("setUsername", username);
+
+          // Display username in UI (optional)
+          document.getElementById("usernameInput").disabled = true;
+          document.querySelector("button").disabled = true;
+        }
+      }
+
+      socket.on("chatHistory", (history) => {
+        const chatMessages = document.getElementById("chatMessages");
+        chatMessages.innerHTML = "";
+
+        history.forEach((entry) => {
+          const messageDiv = document.createElement("div");
+          messageDiv.textContent = `${entry.sender}: ${entry.message}`;
+          chatMessages.appendChild(messageDiv);
+        });
+      });
+
+      function sendMessage() {
+        const recipient = document
+          .getElementById("recipientSelect")
+          .value.trim();
+        const message = document.getElementById("messageInput").value.trim();
+
+        if (recipient && message) {
+          socket.emit("privateMessage", { recipient, message });
+          document.getElementById("messageInput").value = ""; // Clear message input
+        }
+      }
+
+      socket.on("privateMessage", ({ sender, message }) => {
+        const chatMessages = document.getElementById("chatMessages");
+        const messageDiv = document.createElement("div");
+        messageDiv.textContent = `${sender}: ${message}`;
+        chatMessages.appendChild(messageDiv);
+      });
+      socket.on("userList", (users) => {
+        const select = document.getElementById("recipientSelect");
+        select.innerHTML = ""; // Clear existing options
+        
+        // Add an option for each user in the list
+        users.forEach((user) => {
+          if (user !== username) {
+            // Exclude current user from options
+            const option = document.createElement("option");
+            option.value = user;
+            option.textContent = user;
+            select.appendChild(option);
+          }
+        });
+      });
+      // Handle errors related to username or recipient
+      socket.on("usernameError", (error) => {
+        alert(`Error setting username: ${error}`);
+      });
+
+      socket.on("recipientError", (error) => {
+        alert(`Error sending message: ${error}`);
+      });
+    </script>
+  </body>
+</html>
